@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Genshin Impact AI Master - Multi-Menu Edition</title>
+    <style>
+        :root {
+            --primary-dark: #16425B;
+            --ocean-blue: #3A7CA5;
+            --sky-blue: #96CDDE;
+            --electric-blue: #0813D7;
+            --anemo-green: #02F690;
+            --white: #ffffff;
+            --gold: #FFD700;
+            
+            /* Element & Lunar Renkleri */
+            --pyro: #FF4E4E;
+            --hydro: #24C0FF;
+            --electro: #B743FF;
+            --dendro: #3BE23B;
+            --cryo: #90FAFF;
+            --anemo: #00FFCC;
+            --geo: #F3BA2F;
+            --lunar: #A3A8E2;
+        }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            margin: 0;
+            background-color: var(--primary-dark);
+            color: var(--white);
+            text-align: center;
+        }
+
+        /* SEKME GEÇİŞ MEKANİZMASI (GİZLİ RADİO BUTONLARI) */
+        .tab-switch { display: none; }
+
+        /* NAVİGASYON (MENÜ BUTONLARI) */
+        nav {
+            background-color: var(--ocean-blue);
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        nav label {
+            padding: 15px 25px;
+            color: var(--white);
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        nav label:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        /* AKTİF SEKME RENKLERİ */
+        #tab-home-input:checked ~ nav label[for="tab-home-input"],
+        #tab-primo-input:checked ~ nav label[for="tab-primo-input"],
+        #tab-reactions-input:checked ~ nav label[for="tab-reactions-input"] {
+            background-color: var(--primary-dark);
+            border-bottom: 3px solid var(--anemo-green);
+            color: var(--anemo-green);
+        }
+
+        /* PENCERELERİ GİZLEME VE GÖSTERME */
+        .tab-content {
+            display: none;
+            max-width: 1100px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+
+        #tab-home-input:checked ~ #content-home,
+        #tab-primo-input:checked ~ #content-primo,
+        #tab-reactions-input:checked ~ #content-reactions {
+            display: block;
+        }
+
+        /* ELEMENT FİLTRELEME BUTONLARI */
+        .filter-container {
+            margin: 20px 0;
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .filter-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid var(--sky-blue);
+            color: var(--white);
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .filter-btn:hover { background: var(--sky-blue); color: var(--primary-dark); }
+        .filter-btn.active { background: var(--anemo-green); color: var(--primary-dark); border-color: var(--anemo-green); }
+
+        /* KARAKTER GRID YAPISI */
+        h2.region-title {
+            text-align: left;
+            border-left: 5px solid var(--anemo-green);
+            padding-left: 15px;
+            margin: 40px 0 15px;
+            color: var(--sky-blue);
+            background: linear-gradient(90deg, rgba(58, 124, 165, 0.3), transparent);
+        }
+
+        .char-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(115px, 1fr));
+            gap: 15px;
+        }
+
+        .char-selector { display: none; }
+
+        .char-card {
+            background: var(--ocean-blue);
+            border-radius: 10px;
+            padding: 10px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: 0.2s;
+            position: relative;
+        }
+
+        .char-card img {
+            width: 100%;
+            border-radius: 5px;
+            background: var(--primary-dark);
+        }
+
+        .char-card p { margin: 5px 0 2px; font-size: 0.8rem; font-weight: bold; }
+        .char-stars { color: var(--gold); font-size: 10px; margin: 0; }
+
+        .char-selector:checked + .char-card {
+            border-color: var(--anemo-green);
+            background: var(--electric-blue);
+            transform: scale(1.05);
+            box-shadow: 0 0 10px var(--anemo-green);
+        }
+
+        /* GENİŞLETİLMİŞ ARTIFACT & SİLAH HOVER TOOLTIP MEKANİZMASI */
+        .char-card::after {
+            content: attr(data-info);
+            position: absolute;
+            bottom: 115%;
+            left: 50%;
+            transform: translateX(-50%) scale(0.8);
+            width: 200px;
+            background: #ffffff;
+            color: #111111;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 11px;
+            line-height: 1.4;
+            text-align: left;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.6);
+            border: 2px solid var(--anemo-green);
+            white-space: pre-wrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: 0.2s ease-in-out;
+            z-index: 999;
+        }
+
+        .char-card:hover::after {
+            opacity: 1;
+            transform: translateX(-50%) scale(1);
+        }
+
+        /* AI SONUÇ ALANLARI */
+        .ai-result {
+            margin-top: 50px;
+            padding: 30px;
+            background: var(--white);
+            color: var(--primary-dark);
+            border-radius: 20px;
+            text-align: left;
+            border: 4px solid var(--anemo-green);
+        }
+
+        /* PRIMOGEM İÇİN DİKDÖRTGEN BANNER ŞABLONU */
+        .primo-banner-wrapper {
+            margin: 20px auto;
+            max-width: 700px;
+            height: 250px;
+            border-radius: 15px;
+            overflow: hidden;
+            border: 3px solid var(--sky-blue);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            background: var(--ocean-blue);
+            padding: 5px;
+            box-sizing: border-box;
+        }
+
+        .primo-banner-wrapper img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 10px;
+            display: block;
+        }
+
+        /* REACTION İÇİN KARE (1:1) BANNER ŞABLONU */
+        .reaction-banner-wrapper {
+            margin: 20px auto;
+            width: 350px;
+            height: 350px;
+            border-radius: 15px;
+            overflow: hidden;
+            border: 3px solid var(--sky-blue);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            background: var(--ocean-blue);
+            padding: 5px;
+            box-sizing: border-box;
+        }
+
+        .reaction-banner-wrapper img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 10px;
+            display: block;
+        }
+
+        /* PRIMOGEM FARMING PANEL STİLLERİ */
+        .primo-dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+        }
+
+        .primo-card {
+            background: rgba(58, 124, 165, 0.4);
+            border-radius: 15px;
+            padding: 20px;
+            text-align: left;
+            border: 1px solid var(--sky-blue);
+        }
+
+        .primo-card h3 {
+            margin-top: 0;
+            color: var(--gold);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .primo-badge {
+            background: var(--gold);
+            color: #000;
+            padding: 2px 8px;
+            font-size: 12px;
+            font-weight: bold;
+            border-radius: 4px;
+            float: right;
+        }
+
+        /* ELEMENT REAKSİYONLARI GRID STİLLERİ */
+        .reaction-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+        }
+
+        .reaction-card {
+            background: #112A3A;
+            border-radius: 15px;
+            padding: 20px;
+            text-align: left;
+            border-left: 6px solid var(--white);
+            transition: 0.3s;
+        }
+
+        .reaction-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.4);
+        }
+
+        /* Reaksiyon Kenar Renkleri */
+        .react-melt { border-left-color: var(--pyro); box-shadow: inset 0 0 10px rgba(255, 78, 78, 0.1); }
+        .react-vaporize { border-left-color: var(--hydro); box-shadow: inset 0 0 10px rgba(36, 192, 255, 0.1); }
+        .react-swirl { border-left-color: var(--anemo); box-shadow: inset 0 0 10px rgba(0, 255, 204, 0.1); }
+        .react-freeze { border-left-color: var(--cryo); box-shadow: inset 0 0 10px rgba(144, 250, 255, 0.1); }
+        .react-electrocharged { border-left-color: var(--electro); box-shadow: inset 0 0 10px rgba(183, 67, 255, 0.1); }
+        .react-bloom { border-left-color: var(--dendro); box-shadow: inset 0 0 10px rgba(59, 226, 59, 0.1); }
+        .react-hyperbloom { border-left-color: var(--anemo-green); box-shadow: inset 0 0 10px rgba(2, 246, 144, 0.1); }
+        .react-burgeon { border-left-color: var(--pyro); box-shadow: inset 0 0 10px rgba(255, 78, 78, 0.1); }
+        
+        /* Lunar Kenar Renkleri */
+        .react-lunar-charged { border-left-color: var(--lunar); box-shadow: 0 0 15px rgba(163, 168, 226, 0.3); }
+        .react-lunar-bloom { border-left-color: var(--dendro); box-shadow: 0 0 15px rgba(59, 226, 59, 0.3); }
+        .react-lunar-crystallize { border-left-color: var(--geo); box-shadow: 0 0 15px rgba(243, 186, 47, 0.3); }
+
+        .reaction-title-inline {
+            font-size: 1.25rem;
+            margin: 0 0 10px 0;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .element-mix {
+            font-size: 0.75rem;
+            padding: 3px 10px;
+            border-radius: 20px;
+            background: rgba(255,255,255,0.1);
+            font-weight: normal;
+        }
+    </style>
+</head>
+<body>
+
+<!-- GİZLİ SEKME TETİKLEYİCİLERİ -->
+<input type="radio" name="main-tabs" id="tab-home-input" class="tab-switch" checked>
+<input type="radio" name="main-tabs" id="tab-primo-input" class="tab-switch">
+<input type="radio" name="main-tabs" id="tab-reactions-input" class="tab-switch">
+
+<!-- ÜST MENÜ (NAVİGASYON) -->
+<nav>
+    <label for="tab-home-input">HOME</label>
+    <label for="tab-primo-input">PRIMOGEM FARMING</label>
+    <label for="tab-reactions-input">ELEMENTAL REACTIONS</label>
+</nav>
+
+<!-- ──────────────── SEKME 1: HOME (KARAKTER REHBERİ) ──────────────── -->
+<div id="content-home" class="tab-content">
+    <h1>Teyvat AI Master Builder v7.0</h1>
+    <p>Karakterleri elementlerine göre filtreleyebilir, üzerlerine gelerek en iyi build detaylarını görebilirsiniz.</p>
+
+    <!-- ELEMENT FİLTRELEME BUTONLARI -->
+    <div class="filter-container">
+        <button class="filter-btn active" onclick="filterElement('all', this)">✨ Hepsi</button>
+        <button class="filter-btn" onclick="filterElement('pyro', this)">🔥 Pyro</button>
+        <button class="filter-btn" onclick="filterElement('hydro', this)">💧 Hydro</button>
+        <button class="filter-btn" onclick="filterElement('anemo', this)">🍃 Anemo</button>
+        <button class="filter-btn" onclick="filterElement('electro', this)">⚡ Electro</button>
+        <button class="filter-btn" onclick="filterElement('dendro', this)">🌱 Dendro</button>
+        <button class="filter-btn" onclick="filterElement('cryo', this)">❄️ Cryo</button>
+        <button class="filter-btn" onclick="filterElement('geo', this)">🪨 Geo</button>
+    </div>
+
+    <!-- HEXENZIRKEL -->
+    <div class="region-section">
+        <h2 class="region-title">HEXENZIRKEL</h2>
+        <div class="char-grid">
+            <!-- Nicole: Pyro Elementi + Flowing Purity Silahı Tamamdır! -->
+            <label class="char-item" data-element="pyro"><input type="checkbox" class="char-selector"><div class="char-card" data-info="✨ Nicole Build&#10;🛡️ Artifact: Noblesse Oblige (4)&#10;⚔️ Best: Angelo's Heptade&#10;🪙 F2P Silah: Flowing Purity"><img src="Nicole.png"><p>Nicole</p><span class="char-stars">⭐⭐⭐⭐⭐</span></div></label>
+
+<label class="char-item" data-element="pyro"><input type="checkbox" class="char-selector"><div class="char-card" data-info="✨ Alice Build&#10;🛡️ Artifact:???&#10;⚔️ Best: ???&#10;🪙 F2P Silah: ???"><img src="Alice.png"><p>Alice</p><span class="char-stars">⭐⭐⭐⭐⭐(?)</span></div></label>
+        </div>
+    </div>
+
+    <!-- SNEZHNAYA -->
+    <div class="region-section">
+        <h2 class="region-title">SNEZHNAYA</h2>
+        <div class="char-grid">
+            <label class="char-item" data-element="cryo"><input type="checkbox" class="char-selector"><div class="char-card" data-info="✨ Sandrone Build&#10;🛡️ Artifact:Disenchantment in Deep Shadows(4)&#10;⚔️ Best: A Teaspoon of Transcendence &#10;🪙 F2P Silah: Mailed Flower "><img src="Sandrone.png"><p>Sandrone</p><span class="char-stars">⭐⭐⭐⭐⭐</span></div></label>
+            <label class="char-item" data-element="hydro"><input type="checkbox" class="char-selector"><div class="char-card" data-info="✨ Childe Build&#10;🛡️ Artifact: Nymph's Dream (4)&#10;⚔️ Best: Polar Star&#10;🪙 F2P Silah: Rust"><img src="Childe.png"><p>Childe</p><span class="char-stars">⭐⭐⭐⭐⭐</span></div></label>
+            <label class="char-item" data-element="pyro"><input type="checkbox" class="char-selector"><div class="char-card" data-info="✨ Arlecchino Build&#10;🛡️ Artifact: Fragment of Harmonic Whimsy&#10;⚔️ Best: Crimson Moon's Semblance&#10;🪙 F2P Silah: Death Match"><img src="Arlecchino.png"><p>Arlecchino</p><span class="char-stars">⭐⭐⭐⭐⭐</span></div></label>
+
+<label class="char-item" data-element="cryo"><input type="checkbox" class="char-selector"><div class="char-card" data-info="✨ Odette Build&#10;🛡️ Artifact:???&#10;⚔️ Best: ??? &#10;🪙 F2P Silah: ???"><img src="Odette.png"><p>Odette</p><span class="char-stars">⭐⭐⭐⭐⭐</span></div></label>
+
+
+<label class="char-item" data-element="electro"><input type="checkbox" class="char-selector"><div class="char-card" data-info="✨ Alyosha Build&#10;🛡️ Artifact:???&#10;⚔️ Best: ??? &#10;🪙 F2P Silah: ???"><img src="Alyosha.png"><p>Alyosha</p><span class="char-stars">⭐⭐⭐⭐</span></div></label>
+        </div>
+    </div>
+
+    <!-- NOD-KRAI -->
+    <div class="region-section">
+        <h2 class="region-title">NOD-KRAI</h2>
+        <div class="char-grid">
+<label class="char-item" data-element="hydro"><input type="checkbox" class="char-selector"><div class="char-card" data-info="✨ Columbina Build&#10;🛡️ Artifact: Aubade of Morningstar and Moon&#10;⚔️ Best: Nocturne's Curtain Call&#10;🪙 F2P Silah: Prototype Amber"><img src="Columbina.png"><p>Columbina</p><span class="char-stars">⭐⭐⭐⭐⭐</span></div></label>
+
+            <label class="char-item" data-element="electro"><input type="checkbox" class="char-selector"><div class="char-card" data-info="✨ Ineffa Build&#10;🛡️ Artifact: Silken Moon's Serenade/Aubade of Morningstar and Moon (4)&#10;⚔️ Best: Fractured Halo &#10;🪙 F2P Silah: Prospector's Shovel"><img src="Ineffa.png"><p>Ineffa</p><span class="char-stars">⭐⭐⭐⭐⭐</span></div></label>
+            <label class="char-item" data-element="electro"><input type="checkbox" class="char-selector"><div class="char-card" data-info="✨ Flins Build&#10;🛡️ Artifact: Night of the Sky's Unveiling (4)&#10;⚔️ Best: Bloodsoaked Ruins &#10;🪙 F2P Silah: Prospector's Shovel"><img src="Flins.png"><p>Flins</p><span class="char-stars">⭐⭐⭐⭐⭐</span></div></label>
+            <label class="char-item" data-element="hydro"><input type="checkbox" class="char-selector"><div class="char-card" data-info="✨ Aino Build&#10;🛡️ Artifact: Silken Moon's Serenade&#10;⚔️ Best: Flame-Forged Insight&#10;🪙 F2P Silah: Master Key"><img src="Aino.png"><p>Aino</p><span class="char-stars">⭐⭐⭐⭐</span></div></label>
+   
+            <label class="char-item" data-element="dendro"><input type="checkbox" class="char-selector"><div class="char-card" data-info="✨ Nefer Build&#10;🛡️ Artifact: Night of the Sky's Unveiling(4)&#10;⚔️ Best: Reliquary of Truth&#10;🪙 F2P Silah: Dawning Frost"><img src="Nefer.png"><p>Nefer</p><span class="char-stars">⭐⭐⭐⭐⭐</span></div></label>
+
+<label class="char-item" data-element="dendro"><input type="checkbox" class="char-selector"><div class="char-card" data-info="✨ Lauma Build&#10;🛡️ Artifact: Deepwood Memories(4)(Solo Dendro)/Silken Moon's Serenade(4)&#10;⚔️ Best: Nightweaver's Looking Glass &#10;🪙 F2P Silah: Etherlight Spindlelute "><img src="Lauma.png"><p>Lauma</p><span class="char-stars">⭐⭐⭐⭐⭐</span></div></label>
+
+<label class="char-item" data-element="anemo"><input type="checkbox" class="char-selector"><div class="char-card" data-info="✨ Jahoda Build&#10;🛡️ Artifact: Viridescent Venerer(4)&#10;⚔️ Best: Elegy for the End &#10;🪙 F2P Silah: Favonius Warbow "><img src="Jahoda.png"><p>Jahoda</p><span class="char-stars">⭐⭐⭐⭐</span></div></label>
+
+<label class="char-item" data-element="geo"><input type="checkbox" class="char-selector"><div class="char-card" data-info="✨ Illuga Build&#10;🛡️ Artifact: Silken Moon's Serenade(4)&#10;⚔️ Best: Favonius Lance &#10;☰Alternatif: Dragon's Bane"><img src="Illuga.png"><p>Illuga</p><span class="char-stars">⭐⭐⭐⭐</span></div></label>
+
+<label class="char-item" data-element="geo"><input type="checkbox" class="char-selector"><div class="char-card" data-info="✨ Linnea Build&#10;🛡️ Artifact: Aubade of Morningstar and Moon(4)/Husk of Opulent Dreams(4)&#10;⚔️ Best: Golden Frostbound Oath &#10;🪙 F2P Silah: Favonius Warbow"><img src="Linnea.png"><p>Linnea</p><span class="char-stars">⭐⭐⭐⭐⭐</span></div></label>
+        </div>
+    </div>
+
+    <!-- NATLAN -->
+    <div class="region-section">
+        <h2 class="region-title">NATLAN</h2>
+        <div class="char-grid">
+            <label class="char-item" data-element="pyro"><input type="checkbox" class="char-selector"><div class="char-card" data-info="✨ Mavuika Build&#10;🛡️ Artifact: Obsidian Codex (4)&#10;⚔️ Best: A Thousand Blazing Suns&#10;🪙 F2P Silah: Serpent Spine"><img src="Mavuika.png"><p>Mavuika</p><span class="char-stars">⭐⭐⭐⭐⭐</span></div></label>
+            <label class="char-item" data-element="dendro"><input type="checkbox" class="char-selector"><div class="char-card" data-info="✨ Kinich Build&#10;🛡️ Artifact: Obsidian Codex (4)&#10;⚔️ Best: Fang of the Mountain King&#10;🪙 F2P Silah: Earth Shaker"><img src="Kinich.png"><p>Kinich</p><span class="char-stars">⭐⭐⭐⭐⭐</span></div></label>
+            <label class="char-item" data-element="hydro"><input type="checkbox" class="char-selector"><div class="char-card" data-info="✨ Mualani Build&#10;🛡️ Artifact: Obsidian Codex (4)&#10;⚔️ Best: Surf's Up&#10;🪙 F2P Silah: Ring of Yaxche"><img src="Mualani.png"><p>Mualani</p><span class="char-stars">⭐⭐⭐⭐⭐</span></div></label>
+            <label class="char-item" data-element="geo"><input type="checkbox" class="char-selector"><div class="char-card" data-info="✨ Xilonen Build&#10;🛡️ Artifact: Scroll of the Hero of Cinder City&#10;⚔️ Best: Peak Patrol Song&#10;🪙 F2P Silah: Favonius Sword"><img src="Xilonen.png"><p>Xilonen</p><span class="char-stars">⭐⭐⭐⭐⭐</span></div></label>
+        </div>
+    </div>
+
+    <!-- FONTAINE -->
+    <div class="region-section">
+        <h2 class="region-title">FONTAINE</h2>
+        <div class="char-grid">
+            <label class="char-item" data-element="hydro"><input type="checkbox" class="char-selector"><div class="char-card" data-info="✨ Furina Build&#10;🛡️ Artifact: Golden Troupe (4)&#10;⚔️ Best: Splendor of Tranquil Waters&#10;🪙 F2P Silah: Fleuve Cendre Ferryman"><img src="Furina.png"><p>Furina</p><span class="char-stars">⭐⭐⭐⭐⭐</span></div></label>
+            <label class="char-item" data-element="hydro"><input type="checkbox" class="char-selector"><div class="char-card" data-info="✨ Neuvillette Build&#10;🛡️ Artifact: Marechaussee Hunter&#10;⚔️ Best: Tome of the Eternal Flow&#10;🪙 F2P Silah: Prototype Amber"><img src="Neuvillette.png"><p>Neuvillette</p><span class="char-stars">⭐⭐⭐⭐⭐</span></div></label>
+            <label class="char-item" data-element="geo"><input type="checkbox" class="char-selector"><div class="char-card" data-info="✨ Navia Build&#10;🛡️ Artifact: Nighttime Whispers (4)&#10;⚔️ Best: Verdict&#10;🪙 F2P Silah: Ultimate Overlord's Mega Sword"><img src="Navia.png"><p>Navia</p><span class="char-stars">⭐⭐⭐⭐⭐</span></div></label>
+            <label class="char-item" data-element="electro"><input type="checkbox" class="char-selector"><div class="char-card" data-info="✨ Clorinde Build&#10;🛡️ Artifact: Fragment of Harmonic Whims&#10;⚔️ Best: Absolution&#10;🪙 F2P Silah: Iron Sting"><img src="Clorinde.png"><p>Clorinde</p><span class="char-stars">⭐⭐⭐⭐⭐</span></div></label>
+        </div>
+    </div>
+
+    <!-- SUMERU -->
+    <div class="region-section">
+        <h2 class="region-title">SUMERU</h2>
+        <div class="char-grid">
+            <label class="char-item" data-element="dendro"><input type="checkbox" class="char-selector"><div class="char-card" data-info="✨ Nahida Build&#10;🛡️ Artifact: Deepwood Memories (4)&#10;⚔️ Best: A Thousand Floating Dreams&#10;🪙 F2P Silah: Sacrificial Fragments"><img src="Nahida.png"><p>Nahida</p><span class="char-stars">⭐⭐⭐⭐⭐</span></div></label>
+            <label class="char-item" data-element="dendro"><input type="checkbox" class="char-selector"><div class="char-card" data-info="✨ Alhaitham Build&#10;🛡️ Artifact: Gilded Dreams (4)&#10;⚔️ Best: Light of Foliar Incision&#10;🪙 F2P Silah: Iron Sting"><img src="Alhaitham.png"><p>Alhaitham</p><span class="char-stars">⭐⭐⭐⭐⭐</span></div></label>
+            <label class="char-item" data-element="electro"><input type="checkbox" class="char-selector"><div class="char-card" data-info="✨ Cyno Build&#10;🛡️ Artifact: Thundering Fury (4)&#10;⚔️ Best: Staff of the Scarlet Sands&#10;🪙 F2P Silah: White Tassel"><img src="Cyno.png"><p>Cyno</p><span class="char-stars">⭐⭐⭐⭐⭐</span></div></label>
+            <label class="char-item" data-element="hydro"><input type="checkbox" class="char-selector"><div class="char-card" data-info="✨ Nilou Build&#10;🛡️ Artifact: 2x Tenacity + 2x Vourukasha&#10;⚔️ Best: Key of Khaj-Nisut&#10;🪙 F2P Silah: Iron Sting"><img src="Nilou.png"><p>Nilou</p><span class="char-stars">⭐⭐⭐⭐⭐</span></div></label>
+        </div>
+    </div>
+
+    <!-- INAZUMA -->
+    <div class="region-section">
+        <h2 class="region-title">INAZUMA</h2>
+        <div class="char-grid">
+            <!-- Raiden: The Catch Silahı Burada Yerinde Duruyor! -->
+            <label class="char-item" data-element="electro"><input type="checkbox" class="char-selector"><div class="char-card" data-info="✨ Raiden Shogun Build&#10;🛡️ Artifact: Emblem of Severed Fate&#10;⚔️ Best: Engulfing Lightning&#10;🪙 F2P Silah: The Catch"><img src="Raiden.png"><p>Raiden Shogun</p><span class="char-stars">⭐⭐⭐⭐⭐</span></div></label>
+            <label class="char-item" data-element="anemo"><input type="checkbox" class="char-selector"><div class="char-card" data-info="✨ Kazuha Build&#10;🛡️ Artifact: Viridescent Venerer (4)&#10;⚔️ Best: Freedom-Sworn&#10;🪙 F2P Silah: Iron Sting"><img src="Kazuha.png"><p>Kazuha</p><span class="char-stars">⭐⭐⭐⭐⭐</span></div></label>
+            <label class="char-item" data-element="cryo"><input type="checkbox" class="char-selector"><div class="char-card" data-info="✨ Ayaka Build&#10;🛡️ Artifact: Blizzard Strayer (4)&#10;⚔️ Best: Mistsplitter Reforged&#10;🪙 F2P Silah: Amenoma Kageuchi"><img src="Ayaka.png"><p>Ayaka</p><span class="char-stars">⭐⭐⭐⭐⭐</span></div></label>
+            <label class="char-item" data-element="hydro"><input type="checkbox" class="char-selector"><div class="char-card" data-info="✨ Kokomi Build&#10;🛡️ Artifact: Ocean-Hued Clam (4)&#10;⚔️ Best: Everlasting Moonglow&#10;🪙 F2P Silah: Prototype Amber"><img src="Kokomi.png"><p>Kokomi</p><span class="char-stars">⭐⭐⭐⭐⭐</span></div></label>
+        </div>
+    </div>
+
+    <!-- LIYUE -->
+    <div class="region-section">
+        <h2 class="region-title">LIYUE</h2>
+        <div class="char-grid">
+            <label class="char-item" data-element="geo"><input type="checkbox" class="char-selector"><div class="char-card" data-info="✨ Zhongli Build&#10;🛡️ Artifact: Tenacity of the Millelith&#10;⚔️ Best: Staff of Homa&#10;🪙 F2P Silah: Black Tassel"><img src="Zhongli.png"><p>Zhongli</p><span class="char-stars">⭐⭐⭐⭐⭐</span></div></label>
+            <label class="char-item" data-element="pyro"><input type="checkbox" class="char-selector"><div class="char-card" data-info="✨ Hu Tao Build&#10;🛡️ Artifact: Crimson Witch of Flames&#10;⚔️ Best: Staff of Homa&#10;🪙 F2P Silah: White Tassel"><img src="Hu_Tao.png"><p>Hu Tao</p><span class="char-stars">⭐⭐⭐⭐⭐</span></div></label>
+            <label class="char-item" data-element="hydro"><input type="checkbox" class="char-selector"><div class="char-card" data-info="✨ Yelan Build&#10;🛡️ Artifact: Emblem of Severed Fate&#10;⚔️ Best: Aqua Simulacra&#10;🪙 F2P Silah: Favonius Warbow"><img src="Yelan.png"><p>Yelan</p><span class="char-stars">⭐⭐⭐⭐⭐</span></div></label>
+            <label class="char-item" data-element="anemo"><input type="checkbox" class="char-selector"><div class="char-card" data-info="✨ Xiao Build&#10;🛡️ Artifact: Vermillion Hereafter (4)&#10;⚔️ Best: Primordial Jade Winged-Spear&#10;🪙 F2P Silah: White Tassel"><img src="Xiao.png"><p>Xiao</p><span class="char-stars">⭐⭐⭐⭐⭐</span></div></label>
+        </div>
+    </div>
+
+    <!-- MONDSTADT -->
+    <div class="region-section">
+        <h2 class="region-title">MONDSTADT</h2>
+        <div class="char-grid">
+            <label class="char-item" data-element="anemo"><input type="checkbox" class="char-selector"><div class="char-card" data-info="✨ Venti Build&#10;🛡️ Artifact: Viridescent Venerer (4)&#10;⚔️ Best: Elegy for the End&#10;🪙 F2P Silah: Stringless"><img src="Venti.png"><p>Venti</p><span class="char-stars">⭐⭐⭐⭐⭐</span></div></label>
+            <label class="char-item" data-element="pyro"><input type="checkbox" class="char-selector"><div class="char-card" data-info="✨ Bennett Build&#10;🛡️ Artifact: Noblesse Oblige (4)&#10;⚔️ Best: Aquila Favonia&#10;🪙 F2P Silah: Sapwood Blade"><img src="Bennett.png"><p>Bennett</p><span class="char-stars">⭐⭐⭐⭐</span></div></label>
+            <label class="char-item" data-element="pyro"><input type="checkbox" class="char-selector"><div class="char-card" data-info="✨ Diluc Build&#10;🛡️ Artifact: Crimson Witch of Flames&#10;⚔️ Best: Wolf's Gravestone&#10;🪙 F2P Silah: Prototype Archaic"><img src="Diluc.png"><p>Diluc</p><span class="char-stars">⭐⭐⭐⭐⭐</span></div></label>
+            <label class="char-item" data-element="anemo"><input type="checkbox" class="char-selector"><div class="char-card" data-info="✨ Jean Build&#10;🛡️ Artifact: Viridescent Venerer (4)&#10;⚔️ Best: Aquila Favonia&#10;🪙 F2P Silah: Amenoma Kageuchi"><img src="Jean.png"><p>Jean</p><span class="char-stars">⭐⭐⭐⭐⭐</span></div></label>
+            <label class="char-item" data-element="cryo"><input type="checkbox" class="char-selector"><div class="char-card" data-info="✨ Lohen Build&#10;🛡️ Artifact: Marechaussee Hunter (4)&#10;⚔️ Best: Disaster and Remorse&#10;🪙 F2P Silah: Amenoma Kageuchi"><img src="Lohen.png"><p>Lohen</p><span class="char-stars">⭐⭐⭐⭐⭐</span></div></label>
+            <label class="char-item" data-element="anemo"><input type="checkbox" class="char-selector"><div class="char-card" data-info="✨ Prune Build&#10;🛡️ Artifact: Wanderer's Troupe (4)&#10;⚔️ Best: The Widsith&#10;🪙 F2P Silah: Sacrificial Fragments"><img src="Prune.png"><p>Prune</p><span class="char-stars">⭐⭐⭐⭐</span></div></label>
+        </div>
+    </div>
+
+    <!-- AI ANALİZ ALANI -->
+    <div class="ai-result">
+        <h2 style="color: var(--ocean-blue); margin-top: 0;">AI Analiz Raporu</h2>
+        <p><b>Durum:</b> Ulusal takımlar ve karakter sinerjileri kararlı modda listeleniyor.</p>
+        <hr>
+        <h3>Build İpuçları</h3>
+        <p>Karakter kartlarının üzerine farenizi getirerek en uygun ana artifact setlerini ve silah alternatiflerini anlık olarak inceleyebilirsiniz.</p>
+    </div>
+</div>
+
+<!-- ──────────────── SEKME 2: PRIMOGEM FARMING PANELİ ──────────────── -->
+<div id="content-primo" class="tab-content">
+    <h1>Primogem Farming Hesaplayıcı & Rehber</h1>
+    <p>Yıldız Değişimi ve Teyvat kaynaklarından elde edebileceğiniz aylık ortalama Primogem miktarları.</p>
+
+    <div class="primo-banner-wrapper">
+        <img src="Primogem.png">
+    </div>
+
+    <div class="primo-dashboard">
+        <div class="primo-card">
+            <h3>Günlük Komisyonlar <span class="primo-badge">Aylık: 1800</span></h3>
+            <p>Her gün Macera Loncası'ndan alacağınız 4 adet görevi tamamlayarak günde 60 Primogem kazanırsınız.</p>
+            <small style="color: var(--sky-blue);">60 Primogem x 30 Gün = 1800 Primogem</small>
+        </div>
+
+        <div class="primo-card">
+            <h3>Spiral Abyss & Imaginarium <span class="primo-badge">Aylık: ~1600</span></h3>
+            <p>9-12. katları ve tiyatro aşamalarını temizleyerek her yenilenme döneminde yüksek miktarda Primogem toplayabilirsiniz.</p>
+            <small style="color: var(--sky-blue);">Yıldız durumunuza ve tam temizliğe göre değişir.</small>
+        </div>
+
+        <div class="primo-card">
+            <h3>Sürüm Etkinlikleri <span class="primo-badge">Aylık: ~2500+</span></h3>
+            <p>Her yeni güncellemede gelen ana etkinlikler ve yan görevler en büyük Primogem kaynağıdır.</p>
+            <small style="color: var(--sky-blue);">Yayıncı kodları ve bakım telafileri dahil.</small>
+        </div>
+
+        <div class="primo-card">
+            <h3>Harita Keşfi & Sandıklar <span class="primo-badge">Tek Seferlik</span></h3>
+            <p>Nod-Krai, Snezhnaya, Natlan gibi yeni açılan haritalardaki ışınlanma noktaları, yedi ilahi heykelleri ve sandıklar yüklü miktarda primogem verir.</p>
+        </div>
+    </div>
+
+    <div class="ai-result" style="margin-top: 30px;">
+        <h2 style="color: var(--ocean-blue); margin-top: 0;">F2P Bir Oyuncu Ayda Kaç Pity Biriktirebilir?</h2>
+        <p>Hiçbir gerçek ücret ödemeden (F2P), sadece oyun içi aktiviteleri eksiksiz yaparak aylık ortalama <b>5500 - 7000 arası Primogem</b> biriktirmek tamamen mümkündür.</p>
+    </div>
+</div>
+
+<!-- ──────────────── SEKME 3: ELEMENT & LUNAR REAKSİYONLARI ──────────────── -->
+<div id="content-reactions" class="tab-content">
+    <h1>Teyvat & Nod-Krai Element Reaksiyonları</h1>
+    <p>Standart element birleşimleri ile Nod-Krai karakterlerinin "Moonsign" pasifleriyle açılan özel Lunar reaksiyonlarının karşılaştırmalı sözlüğü.</p>
+
+    <div class="reaction-banner-wrapper">
+        <img src="Elements.png">
+    </div>
+
+    <div class="reaction-grid">
+        <div class="reaction-card react-lunar-charged"><div class="reaction-title-inline" style="color: var(--lunar);">⚡ Lunar-Charged <span class="element-mix">Flins / Ineffa Pasifi</span></div><p>Normal Electro-Charged reaksiyonunu dönüştürür. Sahada hem Hydro hem Electro altındaki düşmanlara sürekli yıldırımlar indirir; en büyük farkı kritik hasar vurabilmesidir.</p></div>
+        <div class="reaction-card react-electrocharged"><div class="reaction-title-inline" style="color: var(--electro);">⚡ Electro-Charged <span class="element-mix">Hydro + Electro</span></div><p>Standart elektrik-su reaksiyonu. Zamanla sürekli elektrik hasarı verir ve sıçrar. Kritik vuramaz.</p></div>
+        <div class="reaction-card react-lunar-bloom"><div class="reaction-title-inline" style="color: var(--dendro);">🌱 Lunar-Bloom <span class="element-mix">Nefer / Lauma Pasifi</span></div><p>Normal Bloom tomurcuklarını mistik yapılara dönüştürür. Verdant Dew biriktirerek nükleer hasarlar çıkarır.</p></div>
+        <div class="reaction-card react-bloom"><div class="reaction-title-inline" style="color: var(--dendro);">🌱 Bloom <span class="element-mix">Dendro + Hydro</span></div><p>Yerde Dendro Çekirdeği oluşturur. Belirli süre sonra patlayarak hafif alan hasarı verir.</p></div>
+        <div class="reaction-card react-hyperbloom"><div class="reaction-title-inline" style="color: var(--anemo-green);">🚀 Hyperbloom <span class="element-mix">Çekirdek + Electro</span></div><p>Dendro çekirdeğine Electro vurulduğunda hedefe kilitlenen güdümlü füzelere dönüşür.</p></div>
+        <div class="reaction-card react-burgeon"><div class="reaction-title-inline" style="color: var(--pyro);">💥 Burgeon <span class="element-mix">Çekirdek + Pyro</span></div><p>Dendro çekirdeğine Pyro ile vurulduğunda geniş alana güçlü Doğa hasarı yayarak patlar.</p></div>
+        <div class="reaction-card react-lunar-crystallize"><div class="reaction-title-inline" style="color: var(--geo);">💎 Lunar-Crystallize <span class="element-mix">Zibai / Linnea Pasifi</span></div><p>Hydro ve Geo 3 kez tetiklendiğinde Moondrift Harmony başlar ve düşmana Geo hasarı vuran taretler kurulur.</p></div>
+        <div class="reaction-card react-melt"><div class="reaction-title-inline" style="color: var(--pyro);">Melt (Eritme) <span class="element-mix">Pyro + Cryo</span></div><p>Buz elementine ateşle vurulduğunda hasarı tam 2 katına çıkararak rekor hasarlar sağlar.</p></div>
+        <div class="reaction-card react-vaporize"><div class="reaction-title-inline" style="color: var(--hydro);">Vaporize <span class="element-mix">Hydro + Pyro</span></div><p>Ateş elementine suyla vurulduğunda hasarı katlar, sürekli tetiklenebilir.</p></div>
+        <div class="reaction-card react-swirl"><div class="reaction-title-inline" style="color: var(--anemo);">Swirl (Girdap) <span class="element-mix">Anemo + Herhangi Element</span></div><p>Anemo sahadaki elementi her yere yayar ve düşmanın element direncini kırar.</p></div>
+    </div>
+</div>
+
+<footer style="padding: 40px; opacity: 0.6; font-size: 12px;">
+    &copy; 2026 Genshin Projesi - Bilsem 7. Sınıf Ödevi
+</footer>
+
+<!-- FİLTRELEME SİSTEMİ ÇALIŞMA KODU -->
+<script>
+function filterElement(element, button) {
+    let buttons = document.getElementsByClassName('filter-btn');
+    for (let btn of buttons) {
+        btn.classList.remove('active');
+    }
+    button.classList.add('active');
+
+    let characters = document.getElementsByClassName('char-item');
+    for (let char of characters) {
+        if (element === 'all') {
+            char.style.display = 'block';
+        } else {
+            if (char.getAttribute('data-element') === element) {
+                char.style.display = 'block';
+            } else {
+                char.style.display = 'none';
+            }
+        }
+    }
+
+    let sections = document.getElementsByClassName('region-section');
+    for (let sec of sections) {
+        let visibleChars = sec.querySelectorAll('.char-item[style="display: block;"], .char-item:not([style])');
+        if (visibleChars.length === 0 && element !== 'all') {
+            sec.style.display = 'none';
+        } else {
+            sec.style.display = 'block';
+        }
+    }
+}
+</script>
+
+</body>
+</html>
